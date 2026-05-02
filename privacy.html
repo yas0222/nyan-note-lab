@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>にゃん・ノート プライバシーポリシー</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fffef7;
+        --card: #fff;
+        --ink: #433026;
+        --ink-soft: #766b62;
+        --line: #e7ded1;
+        --accent: #d46d47;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Zen Kaku Gothic New", system-ui, -apple-system, sans-serif;
+        line-height: 1.7;
+      }
+
+      .wrap {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px 16px;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-family: "Zen Maru Gothic", "Zen Kaku Gothic New", sans-serif;
+        font-size: 26px;
+        line-height: 1.35;
+      }
+
+      h2 {
+        margin: 22px 0 8px;
+        font-size: 17px;
+        line-height: 1.4;
+      }
+
+      p,
+      ul {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      ul {
+        padding-left: 18px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .lead {
+        color: var(--ink-soft);
+        margin-bottom: 14px;
+      }
+
+      .meta {
+        margin-top: 16px;
+        color: var(--ink-soft);
+        font-size: 12px;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 14px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: underline;
+      }
+
+      @media (max-width: 480px) {
+        .wrap {
+          padding: 18px 12px 28px;
+        }
+
+        .card {
+          padding: 14px 12px;
+          border-radius: 14px;
+        }
+
+        h1 {
+          font-size: 22px;
+        }
+
+        h2 {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a class="back-link" href="./index.html">← アプリに戻る</a>
+      <article class="card">
+        <h1>にゃん・ノート プライバシーポリシー</h1>
+        <p class="lead">
+          このページは、にゃん・ノートで取り扱う情報と公開範囲について説明するものです。アプリをご利用の前にご確認ください。
+        </p>
+
+        <h2>取得する情報</h2>
+        <ul>
+          <li>猫プロフィール（名前、年齢、性別、毛色・柄、都道府県、市区町村、公開設定、写真など）</li>
+          <li>日次記録（ごはん、水分、排泄、体重、メモ）</li>
+          <li>公開プロフィール用データ（publicCats）</li>
+          <li>技術的な識別情報（匿名認証IDや端末保存用ID）</li>
+        </ul>
+
+        <h2>利用目的</h2>
+        <ul>
+          <li>猫の健康記録を継続して管理するため</li>
+          <li>公開を許可したプロフィールを「みんな」画面に表示するため</li>
+          <li>バックアップや復元などのデータ保護機能を提供するため</li>
+          <li>不具合確認や安定運用のため（Firebase接続確認を含む）</li>
+        </ul>
+
+        <h2>保存方法</h2>
+        <ul>
+          <li><code>cats</code> / <code>records</code> は本人用データとして保存されます。</li>
+          <li><code>publicCats</code> は公開プロフィール用として分離して保存されます。</li>
+          <li>端末のローカル保存とFirebase（Firestore / 匿名認証）を利用します。</li>
+        </ul>
+
+        <h2>公開される情報</h2>
+        <ul>
+          <li>「みんな」画面に表示されるのは <code>publicCats</code> の公開プロフィール情報のみです。</li>
+          <li>公開設定に応じた猫名・都道府県・市区町村・年齢・性別・毛色などが表示されます。</li>
+        </ul>
+
+        <h2>公開されない情報</h2>
+        <ul>
+          <li><code>records</code>、メモ、写真データは「みんな」画面に公開しません。</li>
+          <li>本人用データ（<code>cats</code> / <code>records</code>）は公開プロフィールとは別に扱います。</li>
+        </ul>
+
+        <h2>Firebase / GitHub Pages の利用</h2>
+        <ul>
+          <li>本アプリはGitHub Pages上で配信される場合があります。</li>
+          <li>保存・同期のためにFirebase（Firestore / 匿名認証）を利用します。</li>
+          <li>地域非公開の場合、<code>publicCats</code> には都道府県・市区町村を保存しません。</li>
+        </ul>
+
+        <h2>データ削除依頼</h2>
+        <ul>
+          <li>削除希望がある場合は問い合わせ先までご連絡ください。</li>
+          <li>削除対象の特定に必要な情報（利用時期・公開名など）をご案内いただく場合があります。</li>
+        </ul>
+
+        <h2>バックアップについて</h2>
+        <ul>
+          <li>アプリ内のバックアップ機能でJSONを書き出し・読み込みできます。</li>
+          <li>バックアップファイルの保管・管理は利用者ご自身で行ってください。</li>
+        </ul>
+
+        <h2>医療に関する注意</h2>
+        <ul>
+          <li>にゃん・ノートは獣医療上の診断、治療、緊急時判断を行うものではありません。</li>
+          <li>体調不良や緊急時は、必ず動物病院や専門家に相談してください。</li>
+        </ul>
+
+        <h2>セキュリティ</h2>
+        <ul>
+          <li>公開範囲を分離し、必要最小限の情報のみを公開対象として扱います。</li>
+          <li>本名、住所、電話番号などの個人情報は入力しないでください。</li>
+        </ul>
+
+        <h2>問い合わせ先</h2>
+        <p>ymsh4649@gmail.com</p>
+
+        <p class="meta">制定日: 2026年4月28日</p>
+      </article>
+    </main>
+  </body>
+</html>

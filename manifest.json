@@ -1,0 +1,23 @@
+{
+  "name": "にゃん・ノート",
+  "short_name": "にゃんノート",
+  "start_url": "/nyan-note-lab/",
+  "scope": "/nyan-note-lab/",
+  "display": "standalone",
+  "theme_color": "#d65a45",
+  "background_color": "#f7f0df",
+  "icons": [
+    {
+      "src": "/nyan-note-lab/public/icons/cat-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/nyan-note-lab/public/icons/cat-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
