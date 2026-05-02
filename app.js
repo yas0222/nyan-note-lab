@@ -235,6 +235,12 @@ function getFirebaseErrorDetails(error) {
   return { code, message };
 }
 
+
+function hasGoogleProvider(user) {
+  if (!user || !Array.isArray(user.providerData)) return false;
+  return user.providerData.some((provider) => provider?.providerId === "google.com");
+}
+
 function generatePublicId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `pub-${crypto.randomUUID()}`;
@@ -851,13 +857,13 @@ function CatHealthApp() {
   }, [firestoreGateway]);
 
   const refreshAuthMeta = useCallback((user) => {
-    const providerId = user?.providerData?.[0]?.providerId || "";
-    const providerType = providerId === "google.com" ? "google" : "anonymous";
+    const linkedGoogle = hasGoogleProvider(user);
+    const providerType = linkedGoogle ? "google" : user ? "anonymous" : "none";
     setAuthProviderType(providerType);
     setAuthDisplayName(user?.displayName || user?.email || "");
     setFirebaseDebug((prev) => ({
       ...prev,
-      authStatus: providerType === "google" ? "Googleログイン済み" : user ? "匿名ログイン済み" : "未認証",
+      authStatus: linkedGoogle ? "Googleログイン済み" : user ? "匿名ログイン済み" : "未認証",
     }));
   }, []);
 
@@ -866,7 +872,7 @@ function CatHealthApp() {
     const provider = new window.firebase.auth.GoogleAuthProvider();
     const currentUser = firestoreGateway.auth.currentUser;
     try {
-      if (currentUser?.isAnonymous) {
+      if (currentUser && !hasGoogleProvider(currentUser)) {
         await currentUser.linkWithRedirect(provider);
       } else {
         await firestoreGateway.auth.signInWithRedirect(provider);
@@ -1153,13 +1159,26 @@ function CatHealthApp() {
         authStatus: "認証確認中",
       }));
       try {
-        await firestoreGateway.auth.getRedirectResult().catch(() => null);
-        const uid = firestoreGateway.auth.currentUser?.uid || (await firestoreGateway.auth.signInAnonymously())?.user?.uid || "";
+        let redirectResult = null;
+        try {
+          redirectResult = await firestoreGateway.auth.getRedirectResult();
+        } catch (redirectError) {
+          const details = getFirebaseErrorDetails(redirectError);
+          console.error("[Firebase Auth] Redirect結果の処理失敗", details, redirectError);
+          setFirebaseDebug((prev) => ({
+            ...prev,
+            lastErrorCode: details.code,
+            lastErrorMessage: details.message,
+          }));
+        }
+
+        const resolvedUser = redirectResult?.user || firestoreGateway.auth.currentUser;
+        const uid = resolvedUser?.uid || (await firestoreGateway.auth.signInAnonymously())?.user?.uid || "";
         if (!uid) {
           throw new Error("匿名ログインでuidを取得できませんでした");
         }
         setAuthOwnerUid(uid);
-        refreshAuthMeta(firestoreGateway.auth.currentUser);
+        refreshAuthMeta(firestoreGateway.auth.currentUser || resolvedUser);
         setFirebaseDebug((prev) => ({ ...prev, lastErrorCode: "", lastErrorMessage: "" }));
       } catch (e) {
         const details = getFirebaseErrorDetails(e);
