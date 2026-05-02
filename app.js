@@ -2660,7 +2660,7 @@ function LogView({ cat, logs, saveLog, deleteLog, cats, setSelectedCat, onMoveHo
 
 function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePublicCatsLoadDebug, reloadToken }) {
   const [publicCats, setPublicCats] = useState([]);
-  const [publicFoodRecords, setPublicFoodRecords] = useState([]);
+  const [latestFoodByCatKey, setLatestFoodByCatKey] = useState({});
   const [loadState, setLoadState] = useState("idle");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPrefecture, setSelectedPrefecture] = useState("すべて");
@@ -2708,6 +2708,9 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
           const data = doc.data() || {};
           const publicRegionLevel = normalizePublicRegionLevel(data.publicRegionLevel);
           return {
+            publicId: typeof data.publicId === "string" ? data.publicId : doc.id,
+            ownerUid: typeof data.ownerUid === "string" ? data.ownerUid : "",
+            sourceCatId: typeof data.sourceCatId === "string" ? data.sourceCatId : "",
             displayName: typeof data.displayName === "string" && data.displayName.trim() ? data.displayName.trim() : "名前未設定",
             age: Number.isFinite(Number(data.age)) ? Number(data.age) : null,
             sex: typeof data.sex === "string" ? data.sex : "",
@@ -2726,13 +2729,23 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
           .get();
         const foodItems = foodSnap.docs
           .map((doc) => ({ ...(doc.data() || {}) }))
-          .filter((row) => Number.isFinite(Number(row.foodAmount)) && Number(row.foodAmount) >= 0)
+          .filter((row) => Number.isFinite(Number(row.foodAmount)) && Number(row.foodAmount) > 0)
           .map((row) => ({
+            ownerUid: typeof row.ownerUid === "string" ? row.ownerUid : "",
+            sourceCatId: typeof row.sourceCatId === "string" ? row.sourceCatId : "",
             recordDate: typeof row.recordDate === "string" ? row.recordDate : "",
-            displayName: typeof row.displayName === "string" && row.displayName.trim() ? row.displayName.trim() : "匿名のねこちゃん",
             foodAmount: Number(row.foodAmount),
           }));
-        setPublicFoodRecords(foodItems);
+        const groupedLatest = foodItems.reduce((acc, row) => {
+          if (!row.ownerUid || !row.sourceCatId || !row.recordDate) return acc;
+          const key = `${row.ownerUid}__${row.sourceCatId}`;
+          const prev = acc[key];
+          if (!prev || row.recordDate > prev.recordDate) {
+            acc[key] = row;
+          }
+          return acc;
+        }, {});
+        setLatestFoodByCatKey(groupedLatest);
         const filteredItems =
           selectedPrefecture === "すべて"
             ? items
@@ -2749,6 +2762,7 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
         console.error("[Firestore] publicCats 読み込み失敗", e);
         const details = getFirebaseErrorDetails(e);
         setPublicCats([]);
+        setLatestFoodByCatKey({});
         setLoadState("error");
         onUpdatePublicCatsLoadDebug("読み込み失敗", details.code, details.message, conditionText);
       } finally {
@@ -2799,20 +2813,6 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
         </div>
       )}
 
-
-      <div style={{ ...cardStyle, marginTop: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: palette.ink }}>みんなのごはん記録</div>
-        <div style={{ fontSize: 11, color: palette.inkSoft, marginBottom: 8 }}>共有をONにしたごはん量だけを表示しています</div>
-        {publicFoodRecords.length === 0 ? (
-          <div style={{ fontSize: 12, color: palette.inkSoft }}>共有されたごはん記録はまだありません</div>
-        ) : (
-          publicFoodRecords.map((row, i) => (
-            <div key={`${row.recordDate}-${row.displayName}-${i}`} style={{ fontSize: 13, color: palette.ink, lineHeight: 1.8 }}>
-              {row.recordDate.replace(/-/g, "/")}　{row.displayName}　{row.foodAmount}g
-            </div>
-          ))
-        )}
-      </div>
       {loadState === "loaded" &&
         filteredPublicCats.map((cat, i) => (
           <div
@@ -2852,6 +2852,18 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
                 <Tag>性別 {cat.sex || "未設定"}</Tag>
                 <Tag>毛色・柄 {cat.coatPattern || "未設定"}</Tag>
               </div>
+              {(() => {
+                const key = cat.ownerUid && cat.sourceCatId ? `${cat.ownerUid}__${cat.sourceCatId}` : "";
+                const latestFood = key ? latestFoodByCatKey[key] : null;
+                if (!latestFood || !Number.isFinite(Number(latestFood.foodAmount)) || Number(latestFood.foodAmount) <= 0) return null;
+                const formattedDate = latestFood.recordDate.replace(/-/g, "/");
+                const isToday = latestFood.recordDate === todayKey();
+                return (
+                  <div style={{ fontSize: 12, color: palette.inkSoft, marginTop: 8 }}>
+                    🍚 {isToday ? "今日のごはん" : `${formattedDate} のごはん`} {latestFood.foodAmount}g
+                  </div>
+                );
+              })()}
             </div>
           </div>
         ))}
