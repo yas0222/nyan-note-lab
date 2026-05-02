@@ -1954,16 +1954,22 @@ function HomeView({
         </div>
         <ul style={{ margin: 0, paddingLeft: 16, display: "grid", gap: 4 }}>
           <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-            日次記録、メモ、写真データは「みんな」画面には公開されません。
+            通常、日次記録は「みんな」画面には公開されません。
           </li>
           <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-            「みんな」画面に表示されるのは公開プロフィールのみです。
+            「今日の記録をみんなに共有する」をONにした場合のみ、ごはん量・飲水量・おやつ・うんち回数・おしっこ回数が公開プロフィールカード内に表示されます。
           </li>
           <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-            地域非公開を選ぶと、都道府県・市区町村は公開されません。
+            メモ、写真、体重は「みんな」画面には公開されません。
           </li>
           <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-            本名、住所、電話番号などの個人情報は入力しないでください。
+            猫ちゃんの名前や地域の表示は、プロフィールの公開設定に従います。
+          </li>
+          <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
+            共有をOFFにして保存すると、共有されていた今日の記録は「みんな」画面から削除されます。
+          </li>
+          <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
+            このアプリは日々の記録をサポートするもので、診断や治療を目的としたものではありません。
           </li>
         </ul>
         <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
@@ -2047,19 +2053,22 @@ function HomeView({
               <div style={{ fontSize: 11, color: palette.inkSoft, letterSpacing: "0.05em", marginBottom: 4 }}>プライバシーについて</div>
               <ul style={{ margin: 0, paddingLeft: 16, display: "grid", gap: 4 }}>
                 <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-                  猫プロフィール・日次記録・メモは、健康記録のために保存されます。
+                  通常、日次記録は「みんな」画面には公開されません。
                 </li>
                 <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-                  日次記録・メモ・写真データは「みんな」画面に公開されません。
+                  「今日の記録をみんなに共有する」をONにした場合のみ、ごはん量・飲水量・おやつ・うんち回数・おしっこ回数が公開プロフィールカード内に表示されます。
                 </li>
                 <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-                  「みんな」画面に表示されるのは公開プロフィールのみです。
+                  メモ、写真、体重は「みんな」画面には公開されません。
                 </li>
                 <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-                  地域非公開を選ぶと、都道府県・市区町村は公開されません。
+                  猫ちゃんの名前や地域の表示は、プロフィールの公開設定に従います。
                 </li>
                 <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
-                  本名・住所・電話番号などの個人情報は入力しないでください。
+                  共有をOFFにして保存すると、共有されていた今日の記録は「みんな」画面から削除されます。
+                </li>
+                <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
+                  このアプリは日々の記録をサポートするもので、診断や治療を目的としたものではありません。
                 </li>
                 <li style={{ fontSize: 12, color: palette.ink, lineHeight: 1.5 }}>
                   大切な記録は、バックアップを書き出して保存できます。
