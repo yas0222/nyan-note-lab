@@ -346,6 +346,24 @@ function toFirestoreRecordPayload(record, catId, ownerUid) {
   return omitUndefinedFields(payload);
 }
 
+function toPublicFoodRecordPayload(record, cat, ownerUid) {
+  const now = new Date().toISOString();
+  const nameVisibility = normalizeNameVisibility(cat?.nameVisibility);
+  const displayName = nameVisibility === "public" ? cat?.name || "匿名のねこちゃん" : "匿名のねこちゃん";
+  const payload = {
+    ownerUid,
+    sourceCatId: String(cat?.id),
+    publicFoodRecordId: `public_food_${ownerUid}${String(cat?.id)}${record?.date}`,
+    recordDate: record?.date,
+    foodAmount: Number(record?.foodTotal),
+    displayName,
+    createdAt: record?.createdAt || now,
+    updatedAt: now,
+  };
+  return omitUndefinedFields(payload);
+}
+
+
 const sampleCats = [
   {
     id: 1,
@@ -548,6 +566,7 @@ function newLogDraft(date = todayKey()) {
     weightKg: "",
     memo: "",
     isPrivate: false,
+    shareFoodToPublic: false,
   };
 }
 
@@ -629,6 +648,7 @@ function normalizeLogsByCat(logsByCat) {
           waterTotal: typeof row.waterTotal === "number" ? row.waterTotal : 0,
           weightKg: formatWeight(row.weightKg) ?? "",
           memo: typeof row.memo === "string" ? row.memo : "",
+          shareFoodToPublic: Boolean(row.shareFoodToPublic),
         }))
       : [];
   }
@@ -983,6 +1003,31 @@ function CatHealthApp() {
     }
   };
 
+  const savePublicFoodRecordToCloud = async (record, cat) => {
+    if (!firestoreGateway.enabled || !firestoreGateway.db) return { ok: false };
+    try {
+      const resolvedOwnerUid = await ensureAuthenticatedUid();
+      const recordDate = record?.date || todayKey();
+      const docId = `public_food_${resolvedOwnerUid}${String(cat.id)}${recordDate}`;
+      const payload = toPublicFoodRecordPayload(record, cat, resolvedOwnerUid);
+      await firestoreGateway.db.collection("publicFoodRecords").doc(docId).set(payload, { merge: true });
+      return { ok: true };
+    } catch (_e) {
+      return { ok: false };
+    }
+  };
+
+  const deletePublicFoodRecordFromCloud = async (catId, recordDate) => {
+    if (!firestoreGateway.enabled || !firestoreGateway.db) return;
+    try {
+      const resolvedOwnerUid = await ensureAuthenticatedUid();
+      const docId = `public_food_${resolvedOwnerUid}${String(catId)}${recordDate}`;
+      await firestoreGateway.db.collection("publicFoodRecords").doc(docId).delete();
+    } catch (_e) {
+      // noop
+    }
+  };
+
   const runFirestoreConnectionTest = async () => {
     if (!firestoreGateway.enabled || !firestoreGateway.db) {
       const code = "firestore/not-initialized";
@@ -1262,6 +1307,18 @@ function CatHealthApp() {
     const cloudResult = recordForCloud
       ? await saveRecordToCloud(recordForCloud, catId)
       : { ok: false, errorCode: "records/not-created", errorMessage: "日次記録データを作成できませんでした" };
+    const targetCat = data.cats.find((c) => c.id === catId);
+    if (recordForCloud && targetCat) {
+      const canShare = isPublicCatEnabled(targetCat);
+      if (recordForCloud.shareFoodToPublic && canShare) {
+        await savePublicFoodRecordToCloud(recordForCloud, targetCat);
+      } else {
+        await deletePublicFoodRecordFromCloud(catId, recordForCloud.date);
+        if (recordForCloud.shareFoodToPublic && !canShare) {
+          setMessage("プロフィール非公開のため、みんなには共有されません");
+        }
+      }
+    }
     if (cloudResult.ok) {
       setMessage("今日の記録を保存しました");
     } else {
@@ -1274,6 +1331,8 @@ function CatHealthApp() {
 
   const deleteLog = (catId, logId) => {
     if (!window.confirm("この日次記録を削除しますか？")) return;
+    const rows = data.logsByCat[catId] || [];
+    const targetLog = rows.find((row) => row.id === logId);
     setData((prev) => {
       const rows = prev.logsByCat[catId] || [];
       return {
@@ -1285,6 +1344,7 @@ function CatHealthApp() {
       };
     });
     deleteRecordFromCloud(logId);
+    if (targetLog?.date) deletePublicFoodRecordFromCloud(catId, targetLog.date);
     setMessage("日次記録を削除しました。");
   };
 
@@ -2389,6 +2449,17 @@ function LogView({ cat, logs, saveLog, deleteLog, cats, setSelectedCat, onMoveHo
         </div>
       </div>
 
+      <div style={cardStyle}>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: palette.ink, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={Boolean(draft.shareFoodToPublic)}
+            onChange={(e) => setDraft({ ...draft, shareFoodToPublic: e.target.checked })}
+          />
+          ごはん量をみんなに共有する
+        </label>
+      </div>
+
       <FormErrorList errors={errors} />
       <div style={{ ...cardStyle, marginTop: 8 }}>
         <Label>入力内容の確認</Label>
@@ -2412,6 +2483,8 @@ function LogView({ cat, logs, saveLog, deleteLog, cats, setSelectedCat, onMoveHo
           ) : null}
           <br />
           👀 {draft.isPrivate ? "名前を伏せて共有" : "名前ありで共有"}
+          <br />
+          みんな共有 {draft.shareFoodToPublic ? "ON" : "OFF"}
         </div>
       </div>
       <button
@@ -2587,6 +2660,7 @@ function LogView({ cat, logs, saveLog, deleteLog, cats, setSelectedCat, onMoveHo
 
 function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePublicCatsLoadDebug, reloadToken }) {
   const [publicCats, setPublicCats] = useState([]);
+  const [publicFoodRecords, setPublicFoodRecords] = useState([]);
   const [loadState, setLoadState] = useState("idle");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPrefecture, setSelectedPrefecture] = useState("すべて");
@@ -2645,6 +2719,20 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
         });
         if (cancelled) return;
         setPublicCats(items);
+        const foodSnap = await firestoreGateway.db
+          .collection("publicFoodRecords")
+          .orderBy("recordDate", "desc")
+          .limit(20)
+          .get();
+        const foodItems = foodSnap.docs
+          .map((doc) => ({ ...(doc.data() || {}) }))
+          .filter((row) => Number.isFinite(Number(row.foodAmount)) && Number(row.foodAmount) >= 0)
+          .map((row) => ({
+            recordDate: typeof row.recordDate === "string" ? row.recordDate : "",
+            displayName: typeof row.displayName === "string" && row.displayName.trim() ? row.displayName.trim() : "匿名のねこちゃん",
+            foodAmount: Number(row.foodAmount),
+          }));
+        setPublicFoodRecords(foodItems);
         const filteredItems =
           selectedPrefecture === "すべて"
             ? items
@@ -2711,6 +2799,20 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
         </div>
       )}
 
+
+      <div style={{ ...cardStyle, marginTop: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: palette.ink }}>みんなのごはん記録</div>
+        <div style={{ fontSize: 11, color: palette.inkSoft, marginBottom: 8 }}>共有をONにしたごはん量だけを表示しています</div>
+        {publicFoodRecords.length === 0 ? (
+          <div style={{ fontSize: 12, color: palette.inkSoft }}>共有されたごはん記録はまだありません</div>
+        ) : (
+          publicFoodRecords.map((row, i) => (
+            <div key={`${row.recordDate}-${row.displayName}-${i}`} style={{ fontSize: 13, color: palette.ink, lineHeight: 1.8 }}>
+              {row.recordDate.replace(/-/g, "/")}　{row.displayName}　{row.foodAmount}g
+            </div>
+          ))
+        )}
+      </div>
       {loadState === "loaded" &&
         filteredPublicCats.map((cat, i) => (
           <div
@@ -2760,6 +2862,7 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
 function StatsView({ firestoreGateway, authOwnerUid, authStatus, reloadToken }) {
   const HIDDEN_PREFECTURE_LABEL = "非公開";
   const [publicCats, setPublicCats] = useState([]);
+  const [publicFoodRecords, setPublicFoodRecords] = useState([]);
   const [loadState, setLoadState] = useState("idle");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -2799,6 +2902,20 @@ function StatsView({ firestoreGateway, authOwnerUid, authStatus, reloadToken }) 
         });
         if (cancelled) return;
         setPublicCats(items);
+        const foodSnap = await firestoreGateway.db
+          .collection("publicFoodRecords")
+          .orderBy("recordDate", "desc")
+          .limit(20)
+          .get();
+        const foodItems = foodSnap.docs
+          .map((doc) => ({ ...(doc.data() || {}) }))
+          .filter((row) => Number.isFinite(Number(row.foodAmount)) && Number(row.foodAmount) >= 0)
+          .map((row) => ({
+            recordDate: typeof row.recordDate === "string" ? row.recordDate : "",
+            displayName: typeof row.displayName === "string" && row.displayName.trim() ? row.displayName.trim() : "匿名のねこちゃん",
+            foodAmount: Number(row.foodAmount),
+          }));
+        setPublicFoodRecords(foodItems);
         setLoadState(items.length === 0 ? "empty" : "loaded");
       } catch (e) {
         if (cancelled) return;
