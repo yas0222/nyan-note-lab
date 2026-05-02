@@ -1149,7 +1149,7 @@ function CatHealthApp() {
     });
     const cloudResult = createdCat ? await saveCatToCloud(createdCat) : { ok: false };
     if (cloudResult.ok) {
-      setMessage("猫プロフィールを保存しました ✓ Firebaseにも保存済み");
+      setMessage("猫プロフィールを保存しました");
     } else {
       setMessage("猫プロフィールを保存しました ✓ 端末には保存しましたが、Firebase保存に失敗しました");
     }
@@ -1185,7 +1185,7 @@ function CatHealthApp() {
     updateCats((cats) => cats.map((cat) => (cat.id === catId ? updated : cat)));
     const cloudResult = await saveCatToCloud(updated);
     if (cloudResult.ok) {
-      setMessage("猫プロフィールを保存しました ✓ Firebaseにも保存済み");
+      setMessage("猫プロフィールを保存しました");
     } else {
       setMessage("猫プロフィールを保存しました ✓ 端末には保存しましたが、Firebase保存に失敗しました");
     }
@@ -1263,7 +1263,7 @@ function CatHealthApp() {
       ? await saveRecordToCloud(recordForCloud, catId)
       : { ok: false, errorCode: "records/not-created", errorMessage: "日次記録データを作成できませんでした" };
     if (cloudResult.ok) {
-      setMessage("今日の記録を保存しました ✓ Firebaseにも保存済み");
+      setMessage("今日の記録を保存しました");
     } else {
       setMessage(
         `今日の記録を保存しました ✓ 端末には保存しましたが、records setDoc 失敗（collection=${cloudResult.collectionName || "records"}, recordId=${cloudResult.recordId || "unknown"}, authUid=${cloudResult.authUid || "none"}, payload.ownerUid=${cloudResult.payloadOwnerUid || "none"}, catId=${cloudResult.catId || "unknown"}, recordDate=${cloudResult.recordDate || "unknown"}, op=${cloudResult.operation || "setDoc"}, code=${cloudResult.errorCode || "unknown"}, message=${cloudResult.errorMessage || "不明なエラー"}）`,
