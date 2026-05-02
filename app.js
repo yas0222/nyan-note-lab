@@ -759,6 +759,14 @@ function CatHealthApp() {
     lastAuthProjectId: firestoreGateway.auth?.app?.options?.projectId || "未取得",
     lastDbProjectId: firestoreGateway.db?.app?.options?.projectId || "未取得",
     lastRecordPath: "未実行",
+    lastAuthResult: "未実行",
+    lastAuthErrorCode: "",
+    lastAuthErrorMessage: "",
+    authIsAnonymous: "未取得",
+    authProviderIds: "未取得",
+    authEmail: "未取得",
+    authDisplayName: "未取得",
+    authUidChangeDetected: "未検知",
     lastErrorCode: firestoreGateway.initErrorCode || "",
     lastErrorMessage: firestoreGateway.initErrorMessage || "",
   }));
@@ -858,12 +866,19 @@ function CatHealthApp() {
 
   const refreshAuthMeta = useCallback((user) => {
     const linkedGoogle = hasGoogleProvider(user);
+    const providerIds = Array.isArray(user?.providerData)
+      ? user.providerData.map((provider) => provider?.providerId).filter(Boolean)
+      : [];
     const providerType = linkedGoogle ? "google" : user ? "anonymous" : "none";
     setAuthProviderType(providerType);
     setAuthDisplayName(user?.displayName || user?.email || "");
     setFirebaseDebug((prev) => ({
       ...prev,
       authStatus: linkedGoogle ? "Googleログイン済み" : user ? "匿名ログイン済み" : "未認証",
+      authIsAnonymous: typeof user?.isAnonymous === "boolean" ? String(user.isAnonymous) : "未取得",
+      authProviderIds: providerIds.length ? providerIds.join(", ") : "なし",
+      authEmail: user?.email || "未設定",
+      authDisplayName: user?.displayName || "未設定",
     }));
   }, []);
 
@@ -872,15 +887,31 @@ function CatHealthApp() {
     const provider = new window.firebase.auth.GoogleAuthProvider();
     const currentUser = firestoreGateway.auth.currentUser;
     try {
-      if (currentUser && !hasGoogleProvider(currentUser)) {
+      if (currentUser?.isAnonymous && !hasGoogleProvider(currentUser)) {
         await currentUser.linkWithRedirect(provider);
       } else {
         await firestoreGateway.auth.signInWithRedirect(provider);
       }
+      setFirebaseDebug((prev) => ({
+        ...prev,
+        lastAuthResult:
+          currentUser?.isAnonymous && !hasGoogleProvider(currentUser)
+            ? "Google連携開始(linkWithRedirect)"
+            : "Googleログイン開始(signInWithRedirect)",
+        lastAuthErrorCode: "",
+        lastAuthErrorMessage: "",
+      }));
     } catch (e) {
       const details = getFirebaseErrorDetails(e);
       setMessage(`Googleログイン開始に失敗しました: ${details.message}`);
-      setFirebaseDebug((prev) => ({ ...prev, lastErrorCode: details.code, lastErrorMessage: details.message }));
+      setFirebaseDebug((prev) => ({
+        ...prev,
+        lastErrorCode: details.code,
+        lastErrorMessage: details.message,
+        lastAuthResult: "Google連携開始失敗",
+        lastAuthErrorCode: details.code,
+        lastAuthErrorMessage: details.message,
+      }));
     }
   }, [firestoreGateway]);
 
@@ -1162,6 +1193,19 @@ function CatHealthApp() {
         let redirectResult = null;
         try {
           redirectResult = await firestoreGateway.auth.getRedirectResult();
+          if (redirectResult?.user) {
+            setFirebaseDebug((prev) => ({
+              ...prev,
+              lastAuthResult: hasGoogleProvider(redirectResult.user) ? "Google連携成功(getRedirectResult)" : "Redirect復帰(userあり)",
+              lastAuthErrorCode: "",
+              lastAuthErrorMessage: "",
+            }));
+          } else {
+            setFirebaseDebug((prev) => ({
+              ...prev,
+              lastAuthResult: "Redirect結果なし",
+            }));
+          }
         } catch (redirectError) {
           const details = getFirebaseErrorDetails(redirectError);
           console.error("[Firebase Auth] Redirect結果の処理失敗", details, redirectError);
@@ -1169,6 +1213,9 @@ function CatHealthApp() {
             ...prev,
             lastErrorCode: details.code,
             lastErrorMessage: details.message,
+            lastAuthResult: "Redirect結果処理失敗",
+            lastAuthErrorCode: details.code,
+            lastAuthErrorMessage: details.message,
           }));
         }
 
@@ -1176,6 +1223,13 @@ function CatHealthApp() {
         const uid = resolvedUser?.uid || (await firestoreGateway.auth.signInAnonymously())?.user?.uid || "";
         if (!uid) {
           throw new Error("匿名ログインでuidを取得できませんでした");
+        }
+        const currentUid = firestoreGateway.auth.currentUser?.uid || "";
+        if (currentUid && uid && currentUid !== uid) {
+          setFirebaseDebug((prev) => ({
+            ...prev,
+            authUidChangeDetected: `検知: ${currentUid} -> ${uid}`,
+          }));
         }
         setAuthOwnerUid(uid);
         refreshAuthMeta(firestoreGateway.auth.currentUser || resolvedUser);
@@ -1189,6 +1243,9 @@ function CatHealthApp() {
           authStatus: "認証エラー",
           lastErrorCode: details.code,
           lastErrorMessage: details.message,
+          lastAuthResult: "認証ブートストラップ失敗",
+          lastAuthErrorCode: details.code,
+          lastAuthErrorMessage: details.message,
         }));
       }
     };
@@ -2190,6 +2247,14 @@ function HomeView({
               <div style={{ fontSize: 11, color: palette.inkSoft }}>Firebase Auth: {firebaseDebug.authInitStatus}</div>
               <div style={{ fontSize: 11, color: palette.inkSoft }}>認証状態: {firebaseDebug.authStatus}</div>
               <div style={{ fontSize: 11, color: palette.inkSoft }}>Firebase Auth uid: {firebaseDebug.authUid || "なし"}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>auth.isAnonymous: {firebaseDebug.authIsAnonymous}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>auth.providerIds: {firebaseDebug.authProviderIds}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>auth.email: {firebaseDebug.authEmail}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>auth.displayName: {firebaseDebug.authDisplayName}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthResult: {firebaseDebug.lastAuthResult}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>authUidChangeDetected: {firebaseDebug.authUidChangeDetected}</div>
               <div style={{ fontSize: 11, color: palette.inkSoft }}>
                 localStorage fallback ownerId: {firebaseDebug.fallbackOwnerId || "なし"}
               </div>
