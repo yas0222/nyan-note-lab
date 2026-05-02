@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="にゃん・ノート アイコン">
+  <rect width="512" height="512" rx="112" fill="#f7f0df"/>
+  <path d="M149 195l43-76 64 58 64-58 43 76" fill="#d65a45"/>
+  <circle cx="256" cy="278" r="136" fill="#d65a45"/>
+  <circle cx="205" cy="270" r="15" fill="#f7f0df"/>
+  <circle cx="307" cy="270" r="15" fill="#f7f0df"/>
+  <path d="M220 322c13 19 28 28 36 28s23-9 36-28" fill="none" stroke="#f7f0df" stroke-width="14" stroke-linecap="round"/>
+  <path d="M178 311h-56M390 311h-56M178 338h-56M390 338h-56" stroke="#f7f0df" stroke-width="10" stroke-linecap="round"/>
+</svg>

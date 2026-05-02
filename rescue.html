@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>にゃん・ノート 救済バックアップ</title>
+  </head>
+  <body style="font-family: sans-serif; padding: 16px; line-height: 1.5">
+    <h1>にゃん・ノート 救済ページ</h1>
+    <p>通常アプリが開けない場合、このページから localStorage のデータを確認・書き出しできます。</p>
+    <button id="exportBtn">バックアップを書き出す</button>
+    <h2>localStorage: nyan-note-lab-prototype-v1</h2>
+    <pre id="raw" style="white-space: pre-wrap; background: #f5f5f5; padding: 12px; border: 1px solid #ddd"></pre>
+
+    <script>
+      const STORAGE_KEY = "nyan-note-lab-prototype-v1";
+      const rawEl = document.getElementById("raw");
+      const exportBtn = document.getElementById("exportBtn");
+
+      function getDateStamp() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}${m}${day}`;
+      }
+
+      function readRaw() {
+        try {
+          return localStorage.getItem(STORAGE_KEY);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const raw = readRaw();
+      rawEl.textContent = raw || "(データが見つかりません)";
+
+      exportBtn.addEventListener("click", () => {
+        const currentRaw = readRaw();
+        if (!currentRaw) {
+          alert("バックアップ対象データがありません。");
+          return;
+        }
+        const blob = new Blob([currentRaw], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `nyan-note-rescue-backup-${getDateStamp()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    </script>
+  </body>
+</html>
