@@ -784,6 +784,8 @@ function CatHealthApp() {
 
   const [selectedCatId, setSelectedCatId] = useState(() => data.cats[0]?.id ?? null);
   const [message, setMessage] = useState("");
+  const [authProviderType, setAuthProviderType] = useState("anonymous");
+  const [authDisplayName, setAuthDisplayName] = useState("");
 
   useEffect(() => {
     if (initialLoadRef.current?.loadError) {
@@ -847,6 +849,49 @@ function CatHealthApp() {
     setAuthOwnerUid(uid);
     return uid;
   }, [firestoreGateway]);
+
+  const refreshAuthMeta = useCallback((user) => {
+    const providerId = user?.providerData?.[0]?.providerId || "";
+    const providerType = providerId === "google.com" ? "google" : "anonymous";
+    setAuthProviderType(providerType);
+    setAuthDisplayName(user?.displayName || user?.email || "");
+    setFirebaseDebug((prev) => ({
+      ...prev,
+      authStatus: providerType === "google" ? "Googleログイン済み" : user ? "匿名ログイン済み" : "未認証",
+    }));
+  }, []);
+
+  const handleGoogleSignIn = useCallback(async () => {
+    if (!firestoreGateway.enabled || !firestoreGateway.auth) return;
+    const provider = new window.firebase.auth.GoogleAuthProvider();
+    const currentUser = firestoreGateway.auth.currentUser;
+    try {
+      if (currentUser?.isAnonymous) {
+        await currentUser.linkWithRedirect(provider);
+      } else {
+        await firestoreGateway.auth.signInWithRedirect(provider);
+      }
+    } catch (e) {
+      const details = getFirebaseErrorDetails(e);
+      setMessage(`Googleログイン開始に失敗しました: ${details.message}`);
+      setFirebaseDebug((prev) => ({ ...prev, lastErrorCode: details.code, lastErrorMessage: details.message }));
+    }
+  }, [firestoreGateway]);
+
+  const handleLogout = useCallback(async () => {
+    if (!firestoreGateway.enabled || !firestoreGateway.auth) return;
+    try {
+      await firestoreGateway.auth.signOut();
+      const anonymousResult = await firestoreGateway.auth.signInAnonymously();
+      const nextUid = anonymousResult?.user?.uid || firestoreGateway.auth.currentUser?.uid || "";
+      setAuthOwnerUid(nextUid);
+      refreshAuthMeta(firestoreGateway.auth.currentUser);
+      setMessage("ログアウトしました。匿名ログインに戻りました。");
+    } catch (e) {
+      const details = getFirebaseErrorDetails(e);
+      setMessage(`ログアウトに失敗しました: ${details.message}`);
+    }
+  }, [firestoreGateway, refreshAuthMeta]);
 
   const [publicCatsReloadToken, setPublicCatsReloadToken] = useState(0);
 
@@ -1095,7 +1140,7 @@ function CatHealthApp() {
   }, [allowAutoSave, data]);
 
   useEffect(() => {
-    const runAnonymousAuth = async () => {
+    const runAuthBootstrap = async () => {
       if (!firestoreGateway.enabled || !firestoreGateway.auth) {
         setFirebaseDebug((prev) => ({
           ...prev,
@@ -1105,20 +1150,17 @@ function CatHealthApp() {
       }
       setFirebaseDebug((prev) => ({
         ...prev,
-        authStatus: "匿名ログイン中",
+        authStatus: "認証確認中",
       }));
       try {
+        await firestoreGateway.auth.getRedirectResult().catch(() => null);
         const uid = firestoreGateway.auth.currentUser?.uid || (await firestoreGateway.auth.signInAnonymously())?.user?.uid || "";
         if (!uid) {
           throw new Error("匿名ログインでuidを取得できませんでした");
         }
         setAuthOwnerUid(uid);
-        setFirebaseDebug((prev) => ({
-          ...prev,
-          authStatus: "匿名ログイン済み",
-          lastErrorCode: "",
-          lastErrorMessage: "",
-        }));
+        refreshAuthMeta(firestoreGateway.auth.currentUser);
+        setFirebaseDebug((prev) => ({ ...prev, lastErrorCode: "", lastErrorMessage: "" }));
       } catch (e) {
         const details = getFirebaseErrorDetails(e);
         console.error("[Firebase Auth] 匿名ログイン失敗", details, e);
@@ -1131,8 +1173,15 @@ function CatHealthApp() {
         }));
       }
     };
-    runAnonymousAuth();
-  }, [firestoreGateway]);
+    const unsubscribe = firestoreGateway.auth?.onAuthStateChanged?.((user) => {
+      if (user?.uid) setAuthOwnerUid(user.uid);
+      refreshAuthMeta(user);
+    });
+    runAuthBootstrap();
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [firestoreGateway, refreshAuthMeta]);
 
   useEffect(() => {
     if (!data.cats.length) {
@@ -1490,6 +1539,10 @@ function CatHealthApp() {
             firebaseStatus={firebaseStatus}
             firebaseDebug={firebaseDebug}
             onRunFirestoreConnectionTest={runFirestoreConnectionTest}
+            authProviderType={authProviderType}
+            authDisplayName={authDisplayName}
+            onGoogleSignIn={handleGoogleSignIn}
+            onLogout={handleLogout}
           />
         )}
         {tab === "mycat" && <MyCatView cats={data.cats} logsByCat={data.logsByCat} />}
@@ -1613,6 +1666,10 @@ function HomeView({
   firebaseStatus,
   firebaseDebug,
   onRunFirestoreConnectionTest,
+  authProviderType,
+  authDisplayName,
+  onGoogleSignIn,
+  onLogout,
 }) {
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}月${today.getDate()}日`;
@@ -1710,6 +1767,19 @@ function HomeView({
 
   return (
     <div>
+      <div style={{ ...cardStyle, padding: "12px 14px" }}>
+        <div style={{ fontSize: 11, color: palette.inkSoft, letterSpacing: "0.04em" }}>
+          {authProviderType === "google" ? "✅ Googleログイン済み" : "匿名ログイン中"}
+        </div>
+        <div style={{ marginTop: 4, fontSize: 11, color: palette.inkSoft }}>
+          ログイン方法: {authProviderType === "google" ? "Google" : "匿名"}
+          {authDisplayName ? ` · ${authDisplayName}` : ""}
+        </div>
+        <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {authProviderType !== "google" && <MiniButton onClick={onGoogleSignIn}>Googleでログイン</MiniButton>}
+          <MiniButton onClick={onLogout}>ログアウト</MiniButton>
+        </div>
+      </div>
       <SectionLabel left="今日の記録" right={dateStr} />
       {selectedCat && (
         <div style={{ ...cardStyle, padding: "14px 16px" }}>
