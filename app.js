@@ -356,6 +356,10 @@ function toPublicFoodRecordPayload(record, cat, ownerUid) {
     publicFoodRecordId: `public_food_${ownerUid}${String(cat?.id)}${record?.date}`,
     recordDate: record?.date,
     foodAmount: Number(record?.foodTotal),
+    waterMl: Number(record?.waterTotal),
+    treatLevel: typeof record?.snack === "string" ? record.snack : "",
+    poopCount: Number(record?.poop),
+    peeCount: Number(record?.pee),
     displayName,
     createdAt: record?.createdAt || now,
     updatedAt: now,
@@ -2456,7 +2460,7 @@ function LogView({ cat, logs, saveLog, deleteLog, cats, setSelectedCat, onMoveHo
             checked={Boolean(draft.shareFoodToPublic)}
             onChange={(e) => setDraft({ ...draft, shareFoodToPublic: e.target.checked })}
           />
-          ごはん量をみんなに共有する
+          今日の記録をみんなに共有する
         </label>
       </div>
 
@@ -2729,13 +2733,24 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
           .get();
         const foodItems = foodSnap.docs
           .map((doc) => ({ ...(doc.data() || {}) }))
-          .filter((row) => Number.isFinite(Number(row.foodAmount)) && Number(row.foodAmount) > 0)
           .map((row) => ({
             ownerUid: typeof row.ownerUid === "string" ? row.ownerUid : "",
             sourceCatId: typeof row.sourceCatId === "string" ? row.sourceCatId : "",
             recordDate: typeof row.recordDate === "string" ? row.recordDate : "",
             foodAmount: Number(row.foodAmount),
-          }));
+            waterMl: Number(row.waterMl),
+            treatLevel: typeof row.treatLevel === "string" ? row.treatLevel.trim() : "",
+            poopCount: Number(row.poopCount),
+            peeCount: Number(row.peeCount),
+          }))
+          .filter((row) => {
+            const hasFood = Number.isFinite(row.foodAmount) && row.foodAmount > 0;
+            const hasWater = Number.isFinite(row.waterMl) && row.waterMl > 0;
+            const hasTreat = Boolean(row.treatLevel);
+            const hasPoop = Number.isFinite(row.poopCount) && row.poopCount >= 0;
+            const hasPee = Number.isFinite(row.peeCount) && row.peeCount >= 0;
+            return Boolean(row.ownerUid && row.sourceCatId && row.recordDate && (hasFood || hasWater || hasTreat || hasPoop || hasPee));
+          });
         const groupedLatest = foodItems.reduce((acc, row) => {
           if (!row.ownerUid || !row.sourceCatId || !row.recordDate) return acc;
           const key = `${row.ownerUid}__${row.sourceCatId}`;
@@ -2855,12 +2870,22 @@ function CommunityView({ firestoreGateway, authOwnerUid, authStatus, onUpdatePub
               {(() => {
                 const key = cat.ownerUid && cat.sourceCatId ? `${cat.ownerUid}__${cat.sourceCatId}` : "";
                 const latestFood = key ? latestFoodByCatKey[key] : null;
-                if (!latestFood || !Number.isFinite(Number(latestFood.foodAmount)) || Number(latestFood.foodAmount) <= 0) return null;
+                if (!latestFood) return null;
                 const formattedDate = latestFood.recordDate.replace(/-/g, "/");
                 const isToday = latestFood.recordDate === todayKey();
+                const prefix = isToday ? "今日の" : `${formattedDate} の`;
+                const lines = [];
+                if (Number.isFinite(latestFood.foodAmount) && latestFood.foodAmount > 0) lines.push(`🍚 ${prefix}ごはん ${latestFood.foodAmount}g`);
+                if (Number.isFinite(latestFood.waterMl) && latestFood.waterMl > 0) lines.push(`💧 ${prefix}飲水 ${latestFood.waterMl}ml`);
+                if (latestFood.treatLevel) lines.push(`🍪 ${prefix}おやつ ${latestFood.treatLevel}`);
+                if (Number.isFinite(latestFood.poopCount) && latestFood.poopCount >= 0) lines.push(`💩 ${prefix}うんち ${latestFood.poopCount}回`);
+                if (Number.isFinite(latestFood.peeCount) && latestFood.peeCount >= 0) lines.push(`🚽 ${prefix}おしっこ ${latestFood.peeCount}回`);
+                if (lines.length === 0) return null;
                 return (
-                  <div style={{ fontSize: 12, color: palette.inkSoft, marginTop: 8 }}>
-                    🍚 {isToday ? "今日のごはん" : `${formattedDate} のごはん`} {latestFood.foodAmount}g
+                  <div style={{ fontSize: 12, color: palette.inkSoft, marginTop: 8, display: "grid", gap: 2 }}>
+                    {lines.map((line) => (
+                      <div key={line}>{line}</div>
+                    ))}
                   </div>
                 );
               })()}
