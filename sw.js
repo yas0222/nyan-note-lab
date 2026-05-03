@@ -1,4 +1,4 @@
-const CACHE_NAME = "nyan-note-lab-cache-v4";
+const CACHE_NAME = "nyan-note-lab-cache-v5";
 const APP_SHELL = [
   "/nyan-note-lab/",
   "/nyan-note-lab/index.html",
