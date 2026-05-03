@@ -763,6 +763,9 @@ function CatHealthApp() {
     lastAuthAction: "未実行",
     lastAuthErrorCode: "",
     lastAuthErrorMessage: "",
+    credentialAlreadyInUse: "false",
+    currentAnonymousUid: "なし",
+    attemptedGoogleEmail: "なし",
     redirectResultChecked: "未実行",
     redirectResultUserStatus: "未実行",
     authPersistence: "未設定",
@@ -913,6 +916,9 @@ function CatHealthApp() {
         lastAuthResult: "Googleログイン処理開始",
         lastAuthErrorCode: "",
         lastAuthErrorMessage: "",
+        credentialAlreadyInUse: "false",
+        currentAnonymousUid: currentUser?.isAnonymous ? currentUser?.uid || "なし" : "なし",
+        attemptedGoogleEmail: "取得中",
       }));
       if (shouldLinkAnonymousUser) {
         const beforeUid = currentUser?.uid || "";
@@ -935,6 +941,7 @@ function CatHealthApp() {
     } catch (e) {
       const details = getFirebaseErrorDetails(e);
       const alreadyInUse = details.code === "auth/credential-already-in-use";
+      const attemptedGoogleEmail = details.error?.email || currentUser?.email || "不明";
       setMessage(alreadyInUse ? "このGoogleアカウントは既に別のユーザーに紐づいています" : `Googleログイン開始に失敗しました: ${details.message}`);
       setFirebaseDebug((prev) => ({
         ...prev,
@@ -944,6 +951,9 @@ function CatHealthApp() {
         lastAuthResult: "Googleログイン/連携失敗",
         lastAuthErrorCode: details.code,
         lastAuthErrorMessage: details.message,
+        credentialAlreadyInUse: alreadyInUse ? "true" : "false",
+        currentAnonymousUid: currentUser?.isAnonymous ? currentUser?.uid || "なし" : "なし",
+        attemptedGoogleEmail,
       }));
     }
   }, [firestoreGateway]);
@@ -1918,10 +1928,14 @@ function HomeView({
           <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthResult: {firebaseDebug.lastAuthResult}</div>
           <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
           <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>credentialAlreadyInUse: {firebaseDebug.credentialAlreadyInUse}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>currentAnonymousUid: {firebaseDebug.currentAnonymousUid}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>attemptedGoogleEmail: {firebaseDebug.attemptedGoogleEmail}</div>
           <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResultExecuted: {firebaseDebug.redirectResultChecked}</div>
           <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResultHasUser: {firebaseDebug.redirectResultUserStatus}</div>
           <div style={{ fontSize: 11, color: palette.inkSoft, wordBreak: "break-all" }}>currentUserProviderDataRaw: {firebaseDebug.currentUserProviderDataRaw}</div>
         </div>
+        <div style={{ marginTop: 8, fontSize: 10, color: palette.inkSoft }}>開発環境では、Firebase Authentication上の既存Google連携ユーザーを削除してから再度試すと、現在の匿名ユーザーにGoogleをリンクできます</div>
       </div>}
 
       <SectionLabel left="今日の記録" right={dateStr} />
@@ -2323,6 +2337,9 @@ function HomeView({
               <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthAction: {firebaseDebug.lastAuthAction}</div>
               <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
               <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>credentialAlreadyInUse: {firebaseDebug.credentialAlreadyInUse}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>currentAnonymousUid: {firebaseDebug.currentAnonymousUid}</div>
+              <div style={{ fontSize: 11, color: palette.inkSoft }}>attemptedGoogleEmail: {firebaseDebug.attemptedGoogleEmail}</div>
               <details style={{ marginTop: 6 }}>
                 <summary style={{ fontSize: 12, color: palette.ink, cursor: "pointer" }}>認証診断</summary>
                 <div style={{ marginTop: 6, display: "grid", gap: 2 }}>
@@ -2335,6 +2352,9 @@ function HomeView({
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthResult: {firebaseDebug.lastAuthResult}</div>
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>credentialAlreadyInUse: {firebaseDebug.credentialAlreadyInUse}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>currentAnonymousUid: {firebaseDebug.currentAnonymousUid}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>attemptedGoogleEmail: {firebaseDebug.attemptedGoogleEmail}</div>
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult実行: {firebaseDebug.redirectResultChecked}</div>
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult結果: {firebaseDebug.redirectResultUserStatus}</div>
                 </div>
