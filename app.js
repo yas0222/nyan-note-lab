@@ -769,6 +769,7 @@ function CatHealthApp() {
     authProviderIds: "未取得",
     authEmail: "未取得",
     authDisplayName: "未取得",
+    currentUserProviderDataRaw: "未取得",
     authUidChangeDetected: "未検知",
     lastErrorCode: firestoreGateway.initErrorCode || "",
     lastErrorMessage: firestoreGateway.initErrorMessage || "",
@@ -882,6 +883,12 @@ function CatHealthApp() {
       authProviderIds: providerIds.length ? providerIds.join(", ") : "なし",
       authEmail: user?.email || "未設定",
       authDisplayName: user?.displayName || "未設定",
+      currentUserProviderDataRaw: Array.isArray(user?.providerData) ? JSON.stringify(user.providerData.map((provider) => ({
+        providerId: provider?.providerId || "",
+        uid: provider?.uid || "",
+        email: provider?.email || "",
+        displayName: provider?.displayName || "",
+      }))) : "[]",
     }));
   }, []);
 
@@ -1874,23 +1881,23 @@ function HomeView({
         </div>
       </div>
 
-      {SHOW_DEV_MENU_IN_PUBLIC && <div style={{ ...cardStyle, padding: "12px 14px", marginTop: 6 }}>
-        <details open>
-          <summary style={{ fontSize: 12, color: palette.ink, cursor: "pointer", fontWeight: 700 }}>認証診断</summary>
-          <div style={{ marginTop: 6, display: "grid", gap: 2 }}>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>authUid: {firebaseDebug.authUid || "なし"}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>isAnonymous: {firebaseDebug.authIsAnonymous}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>providerIds: {firebaseDebug.authProviderIds}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>email: {firebaseDebug.authEmail}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>displayName: {firebaseDebug.authDisplayName}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthAction: {firebaseDebug.lastAuthAction}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthResult: {firebaseDebug.lastAuthResult}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult実行: {firebaseDebug.redirectResultChecked}</div>
-            <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult結果: {firebaseDebug.redirectResultUserStatus}</div>
-          </div>
-        </details>
+      {isDevEnvironment() && <div style={{ ...cardStyle, padding: "12px 14px", marginTop: 6 }}>
+        <div style={{ fontSize: 14, color: palette.ink, fontWeight: 700 }}>認証診断</div>
+        <div style={{ fontSize: 11, color: palette.accent, marginTop: 4, fontWeight: 700 }}>AUTH DEBUG V1</div>
+        <div style={{ marginTop: 8, display: "grid", gap: 2 }}>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>authUid: {firebaseDebug.authUid || "なし"}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>isAnonymous: {firebaseDebug.authIsAnonymous}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>providerIds: {firebaseDebug.authProviderIds}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>email: {firebaseDebug.authEmail}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>displayName: {firebaseDebug.authDisplayName}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthAction: {firebaseDebug.lastAuthAction}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthResult: {firebaseDebug.lastAuthResult}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResultExecuted: {firebaseDebug.redirectResultChecked}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResultHasUser: {firebaseDebug.redirectResultUserStatus}</div>
+          <div style={{ fontSize: 11, color: palette.inkSoft, wordBreak: "break-all" }}>currentUserProviderDataRaw: {firebaseDebug.currentUserProviderDataRaw}</div>
+        </div>
       </div>}
 
       <SectionLabel left="今日の記録" right={dateStr} />
