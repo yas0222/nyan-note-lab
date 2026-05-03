@@ -866,7 +866,7 @@ function CatHealthApp() {
     await currentUser.getIdToken(true);
     setAuthOwnerUid(uid);
     return uid;
-  }, [firestoreGateway]);
+  }, [firestoreGateway, refreshAuthMeta]);
 
   const refreshAuthMeta = useCallback((user) => {
     const linkedGoogle = hasGoogleProvider(user);
@@ -897,28 +897,42 @@ function CatHealthApp() {
     const provider = new window.firebase.auth.GoogleAuthProvider();
     const currentUser = firestoreGateway.auth.currentUser;
     try {
-      const useLinkWithRedirect = currentUser?.isAnonymous && !hasGoogleProvider(currentUser);
+      const shouldLinkAnonymousUser = Boolean(currentUser?.isAnonymous) && !hasGoogleProvider(currentUser);
       setFirebaseDebug((prev) => ({
         ...prev,
-        lastAuthAction: useLinkWithRedirect ? "Google連携開始(linkWithRedirect)" : "Googleログイン開始(signInWithRedirect)",
+        lastAuthAction: shouldLinkAnonymousUser ? "Google連携開始(linkWithPopup)" : "Googleログイン開始(signInWithPopup)",
         lastAuthResult: "Googleログイン処理開始",
         lastAuthErrorCode: "",
         lastAuthErrorMessage: "",
       }));
-      if (useLinkWithRedirect) {
-        await currentUser.linkWithRedirect(provider);
+      if (shouldLinkAnonymousUser) {
+        const beforeUid = currentUser?.uid || "";
+        const linkResult = await currentUser.linkWithPopup(provider);
+        const linkedUid = linkResult?.user?.uid || firestoreGateway.auth.currentUser?.uid || "";
+        setFirebaseDebug((prev) => ({
+          ...prev,
+          lastAuthResult: `Google連携成功(linkWithPopup): uid ${beforeUid} -> ${linkedUid}`,
+          authUidChangeDetected: beforeUid && linkedUid && beforeUid !== linkedUid ? `検知: ${beforeUid} -> ${linkedUid}` : "UID維持",
+        }));
       } else {
-        await firestoreGateway.auth.signInWithRedirect(provider);
+        const signInResult = await firestoreGateway.auth.signInWithPopup(provider);
+        const signedInUid = signInResult?.user?.uid || firestoreGateway.auth.currentUser?.uid || "";
+        setFirebaseDebug((prev) => ({
+          ...prev,
+          lastAuthResult: `Googleログイン成功(signInWithPopup): uid ${signedInUid}`,
+        }));
       }
+      refreshAuthMeta(firestoreGateway.auth.currentUser);
     } catch (e) {
       const details = getFirebaseErrorDetails(e);
-      setMessage(`Googleログイン開始に失敗しました: ${details.message}`);
+      const alreadyInUse = details.code === "auth/credential-already-in-use";
+      setMessage(alreadyInUse ? "このGoogleアカウントは既に別のユーザーに紐づいています" : `Googleログイン開始に失敗しました: ${details.message}`);
       setFirebaseDebug((prev) => ({
         ...prev,
-        lastAuthAction: "Googleログイン開始失敗",
+        lastAuthAction: "Googleログイン/連携失敗",
         lastErrorCode: details.code,
         lastErrorMessage: details.message,
-        lastAuthResult: "Google連携開始失敗",
+        lastAuthResult: "Googleログイン/連携失敗",
         lastAuthErrorCode: details.code,
         lastAuthErrorMessage: details.message,
       }));
