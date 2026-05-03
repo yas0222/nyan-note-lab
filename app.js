@@ -780,6 +780,15 @@ function CatHealthApp() {
     authDisplayName: "未取得",
     currentUserProviderDataRaw: "未取得",
     authUidChangeDetected: "未検知",
+    lastCatSaveFailureReason: "未実行",
+    lastCatSaveCurrentAuthUid: "未実行",
+    lastCatSaveCatId: "未実行",
+    lastCatSaveFirestoreCatDocId: "未実行",
+    lastCatSavePayloadOwnerUid: "未実行",
+    lastCatSaveExistingDocOwnerUid: "未取得",
+    lastCatSaveErrorCode: "",
+    lastCatSaveErrorMessage: "",
+    ownerUidMismatchDetected: "false",
     lastErrorCode: firestoreGateway.initErrorCode || "",
     lastErrorMessage: firestoreGateway.initErrorMessage || "",
   }));
@@ -977,6 +986,8 @@ function CatHealthApp() {
 
   const saveCatToCloud = async (cat) => {
     let resolvedOwnerUid = "";
+    const catId = String(cat?.id || "");
+    let existingDocOwnerUid = "not-checked";
     if (!firestoreGateway.enabled || !firestoreGateway.db) {
       updateFirestoreSaveDebug(
         "猫プロフィール",
@@ -997,7 +1008,15 @@ function CatHealthApp() {
     try {
       resolvedOwnerUid = await ensureAuthenticatedUid();
       const payload = toFirestoreCatPayload(cat, resolvedOwnerUid);
-      await firestoreGateway.db.collection("cats").doc(String(cat.id)).set(payload, { merge: true });
+      const firestoreCatDocId = String(cat.id);
+      const catDocRef = firestoreGateway.db.collection("cats").doc(firestoreCatDocId);
+      const existingSnap = await catDocRef.get();
+      if (existingSnap.exists) {
+        existingDocOwnerUid = existingSnap.data()?.ownerUid || "";
+      } else {
+        existingDocOwnerUid = "(doc-not-found)";
+      }
+      await catDocRef.set(payload, { merge: true });
       if (isPublicCatEnabled(cat)) {
         const publicPayload = toPublicCatPayload(cat, resolvedOwnerUid);
         await firestoreGateway.db.collection("publicCats").doc(String(cat.publicId)).set(publicPayload, { merge: true });
@@ -1011,6 +1030,18 @@ function CatHealthApp() {
       }
       setFirebaseStatus("Firebase保存可能");
       updateFirestoreSaveDebug("猫プロフィール", true, resolvedOwnerUid);
+      setFirebaseDebug((prev) => ({
+        ...prev,
+        lastCatSaveFailureReason: "なし",
+        lastCatSaveCurrentAuthUid: resolvedOwnerUid || "なし",
+        lastCatSaveCatId: catId || "なし",
+        lastCatSaveFirestoreCatDocId: firestoreCatDocId || "なし",
+        lastCatSavePayloadOwnerUid: payload.ownerUid || "なし",
+        lastCatSaveExistingDocOwnerUid: existingDocOwnerUid || "未取得",
+        lastCatSaveErrorCode: "",
+        lastCatSaveErrorMessage: "",
+        ownerUidMismatchDetected: "false",
+      }));
       setPublicCatsReloadToken((prev) => prev + 1);
       return { ok: true };
     } catch (e) {
@@ -1018,9 +1049,28 @@ function CatHealthApp() {
       console.error("[Firestore] 猫プロフィール保存エラー詳細", e);
       if (e && e.stack) console.error("[Firestore] 猫プロフィール保存エラースタック", e.stack);
       const details = getFirebaseErrorDetails(e);
+      const mismatchDetected = Boolean(
+        resolvedOwnerUid && existingDocOwnerUid && existingDocOwnerUid !== "not-checked" && existingDocOwnerUid !== "(doc-not-found)"
+          && existingDocOwnerUid !== resolvedOwnerUid,
+      );
+      const failureReason = details.code === "permission-denied"
+        ? "オンライン保存に失敗しました。ログイン状態と保存済みデータの所有者が一致していない可能性があります"
+        : `オンライン保存に失敗しました（${details.code || "unknown"}）`;
+      setFirebaseDebug((prev) => ({
+        ...prev,
+        lastCatSaveFailureReason: failureReason,
+        lastCatSaveCurrentAuthUid: resolvedOwnerUid || "なし",
+        lastCatSaveCatId: catId || "なし",
+        lastCatSaveFirestoreCatDocId: catId || "なし",
+        lastCatSavePayloadOwnerUid: resolvedOwnerUid || "なし",
+        lastCatSaveExistingDocOwnerUid: existingDocOwnerUid || "未取得",
+        lastCatSaveErrorCode: details.code || "",
+        lastCatSaveErrorMessage: details.message || "",
+        ownerUidMismatchDetected: mismatchDetected ? "true" : "false",
+      }));
       updateFirestoreSaveDebug("公開プロフィール", false, resolvedOwnerUid, details.code, details.message);
       updateFirestoreSaveDebug("猫プロフィール", false, resolvedOwnerUid, details.code, details.message);
-      return { ok: false };
+      return { ok: false, errorCode: details.code };
     }
   };
 
@@ -1377,7 +1427,11 @@ function CatHealthApp() {
     if (cloudResult.ok) {
       setMessage("猫プロフィールを保存しました");
     } else {
-      setMessage("猫プロフィールを保存しました ✓ 端末には保存しましたが、Firebase保存に失敗しました");
+      setMessage(
+        cloudResult.errorCode === "permission-denied"
+          ? "猫プロフィールを保存しました ✓ オンライン保存に失敗しました。ログイン状態と保存済みデータの所有者が一致していない可能性があります"
+          : "猫プロフィールを保存しました ✓ 端末には保存しましたが、Firebase保存に失敗しました",
+      );
     }
     return { ok: true };
   };
@@ -1413,7 +1467,11 @@ function CatHealthApp() {
     if (cloudResult.ok) {
       setMessage("猫プロフィールを保存しました");
     } else {
-      setMessage("猫プロフィールを保存しました ✓ 端末には保存しましたが、Firebase保存に失敗しました");
+      setMessage(
+        cloudResult.errorCode === "permission-denied"
+          ? "猫プロフィールを保存しました ✓ オンライン保存に失敗しました。ログイン状態と保存済みデータの所有者が一致していない可能性があります"
+          : "猫プロフィールを保存しました ✓ 端末には保存しましたが、Firebase保存に失敗しました",
+      );
     }
     return { ok: true };
   };
@@ -2357,8 +2415,20 @@ function HomeView({
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>attemptedGoogleEmail: {firebaseDebug.attemptedGoogleEmail}</div>
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult実行: {firebaseDebug.redirectResultChecked}</div>
                   <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult結果: {firebaseDebug.redirectResultUserStatus}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>cat save failure reason: {firebaseDebug.lastCatSaveFailureReason}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>currentAuthUid: {firebaseDebug.lastCatSaveCurrentAuthUid}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>catId: {firebaseDebug.lastCatSaveCatId}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>firestoreCatDocId: {firebaseDebug.lastCatSaveFirestoreCatDocId}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>payloadOwnerUid: {firebaseDebug.lastCatSavePayloadOwnerUid}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>existingDocOwnerUid: {firebaseDebug.lastCatSaveExistingDocOwnerUid}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>lastCatSaveErrorCode: {firebaseDebug.lastCatSaveErrorCode || "なし"}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>lastCatSaveErrorMessage: {firebaseDebug.lastCatSaveErrorMessage || "なし"}</div>
+                  <div style={{ fontSize: 11, color: palette.inkSoft }}>ownerUidMismatchDetected: {firebaseDebug.ownerUidMismatchDetected}</div>
                 </div>
               </details>
+              {isDevEnvironment() && <div style={{ marginTop: 6, fontSize: 10, color: palette.inkSoft }}>
+                開発環境では、Firestore上の cats / publicCats / records / publicFoodRecords の ownerUid を現在の authUid に揃えると復旧できます
+              </div>}
               <div style={{ fontSize: 11, color: palette.inkSoft }}>authUidChangeDetected: {firebaseDebug.authUidChangeDetected}</div>
               <div style={{ fontSize: 11, color: palette.inkSoft }}>
                 localStorage fallback ownerId: {firebaseDebug.fallbackOwnerId || "なし"}
