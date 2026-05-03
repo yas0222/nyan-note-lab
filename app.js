@@ -1638,7 +1638,7 @@ function CatHealthApp() {
             onLogout={handleLogout}
           />
         )}
-        {tab === "mycat" && <MyCatView cats={data.cats} logsByCat={data.logsByCat} />}
+        {tab === "mycat" && <MyCatView cats={data.cats} logsByCat={data.logsByCat} firebaseDebug={firebaseDebug} />}
         {tab === "log" && selectedCat && (
           <LogView
             cat={selectedCat}
@@ -1873,6 +1873,26 @@ function HomeView({
           <MiniButton onClick={onLogout}>ログアウト</MiniButton>
         </div>
       </div>
+
+      {SHOW_DEV_MENU_IN_PUBLIC && <div style={{ ...cardStyle, padding: "12px 14px", marginTop: 6 }}>
+        <details open>
+          <summary style={{ fontSize: 12, color: palette.ink, cursor: "pointer", fontWeight: 700 }}>認証診断</summary>
+          <div style={{ marginTop: 6, display: "grid", gap: 2 }}>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>authUid: {firebaseDebug.authUid || "なし"}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>isAnonymous: {firebaseDebug.authIsAnonymous}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>providerIds: {firebaseDebug.authProviderIds}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>email: {firebaseDebug.authEmail}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>displayName: {firebaseDebug.authDisplayName}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthAction: {firebaseDebug.lastAuthAction}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthResult: {firebaseDebug.lastAuthResult}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorCode: {firebaseDebug.lastAuthErrorCode || "なし"}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>lastAuthErrorMessage: {firebaseDebug.lastAuthErrorMessage || "なし"}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult実行: {firebaseDebug.redirectResultChecked}</div>
+            <div style={{ fontSize: 11, color: palette.inkSoft }}>getRedirectResult結果: {firebaseDebug.redirectResultUserStatus}</div>
+          </div>
+        </details>
+      </div>}
+
       <SectionLabel left="今日の記録" right={dateStr} />
       {selectedCat && (
         <div style={{ ...cardStyle, padding: "14px 16px" }}>
@@ -2332,7 +2352,7 @@ function HomeView({
   );
 }
 
-function MyCatView({ cats, logsByCat }) {
+function MyCatView({ cats, logsByCat, firebaseDebug }) {
   if (!cats.length) {
     return (
       <div>
